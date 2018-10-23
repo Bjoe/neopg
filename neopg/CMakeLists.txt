@@ -99,6 +99,9 @@ target_compile_options(neopg
 target_link_libraries(neopg PUBLIC
   PkgConfig::botan-2
   ${CURL_LDFLAGS} ${CURL_LIBRARIES}
+  OpenSSL::SSL # CURL depends on OpenSSL
+  intsizeof::intsizeof # CURL depends on intsizeof
+  ZLIB::zlib # CURL depends on ZLIB
 )
 
 add_library(neopg::neopg ALIAS neopg)

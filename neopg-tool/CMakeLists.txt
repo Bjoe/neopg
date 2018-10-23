@@ -247,6 +247,7 @@ target_compile_definitions(neopg-bin PRIVATE
 target_link_libraries(neopg-bin
   PUBLIC
   Boost::locale
+  Boost::system
   PkgConfig::libusb-1.0
   Threads::Threads
   PRIVATE

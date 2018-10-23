@@ -5,13 +5,21 @@
 
 cmake_minimum_required(VERSION 3.2 FATAL_ERROR)
 
+option(HUNTER_ENABLED "Enable Hunter package manager" OFF)
+include("cmake/HunterGate.cmake")
+HunterGate(
+    URL "https://codeload.github.com/Bjoe/hunter/legacy.zip/2f74dcf3f8e0dbd2cb775ea936f8874c49c6b2e9"
+    SHA1 "d0e4fd92cfc3169734784038720ee77eca2eadae"
+    LOCAL
+)
+
 # Get version number before calling project().
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 include(GitVersion)
 set(NeoPG_VERSION_STRING "${GIT_VERSION_STRING}")
 set(NeoPG_VERSION_STRING_FULL "${GIT_VERSION_STRING_FULL}")
 
-project(NeoPG VERSION "${NeoPG_VERSION_STRING}" LANGUAGES CXX)
+project(NeoPG VERSION "${NeoPG_VERSION_STRING}")
 message(STATUS "${PROJECT_NAME} ${${PROJECT_NAME}_VERSION_STRING_FULL}")
 
 # Add targets for maintainers: release, changelog
@@ -22,6 +30,19 @@ include(GitRelease)
 # Add user-settable options.
 option(BUILD_SHARED_LIBS "Build shared libraries." ON)
 
+# Add thirdparty stuff
+hunter_add_package(GTest)
+hunter_add_package(sqlite3)
+hunter_add_package(ZLIB)  # botan depends on zlib
+hunter_add_package(BZip2) # botan depends on bzip2
+hunter_add_package(botan)
+hunter_add_package(libusb)
+hunter_add_package(gnutls)
+hunter_add_package(CURL)
+hunter_add_package(tao-pegtl)
+hunter_add_package(taocpp-json)
+hunter_add_package(Boost COMPONENTS locale system)
+hunter_add_package(Gettext)
 
 # Compiler setup.
 
@@ -37,16 +58,20 @@ if (APPLE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_DARWIN_C_SOURCE")
 endif()
 
-# Google Test
-set(GTEST_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/googletest/googletest/)
-set(GTEST_INCLUDE_DIR ${GTEST_ROOT}/include)
-if(${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
-  set(gtest_force_shared_crt ON CACHE BOOL
-    "Use shared (DLL) run-time lib even when Google Test is built as static lib.")
+if(HUNTER_ENABLED)
+  find_package(GTest REQUIRED)
+else()
+  # Google Test
+  set(GTEST_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/googletest/googletest/)
+  set(GTEST_INCLUDE_DIR ${GTEST_ROOT}/include)
+  if(${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
+    set(gtest_force_shared_crt ON CACHE BOOL
+      "Use shared (DLL) run-time lib even when Google Test is built as static lib.")
+  endif()
+  add_subdirectory(${GTEST_ROOT} EXCLUDE_FROM_ALL)
+  add_library(GTest::GTest ALIAS gtest)
+  add_library(GTest::Main ALIAS gtest_main)
 endif()
-add_subdirectory(${GTEST_ROOT} EXCLUDE_FROM_ALL)
-add_library(GTest::GTest ALIAS gtest)
-add_library(GTest::Main ALIAS gtest_main)
 
 # Add all tests as dependencies to "tests" so the coverage target can
 # depend on them.
@@ -55,11 +80,14 @@ add_custom_target(tests)
 enable_testing()
 
 # PEGTL
-set(PEGTL_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/pegtl)
-set(PEGTL_INCLUDE_DIR ${PEGTL_ROOT}/include)
-set(PEGTL_BUILD_TESTS OFF CACHE BOOL "")
-add_subdirectory(${PEGTL_ROOT} EXCLUDE_FROM_ALL)
-
+if(HUNTER_ENABLED)
+  find_package(tao-pegtl REQUIRED)
+else()
+  set(PEGTL_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/pegtl)
+  set(PEGTL_INCLUDE_DIR ${PEGTL_ROOT}/include)
+  set(PEGTL_BUILD_TESTS OFF CACHE BOOL "")
+  add_subdirectory(${PEGTL_ROOT} EXCLUDE_FROM_ALL)
+endif()
 
 # Rang
 set(RANG_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rang)
@@ -74,10 +102,14 @@ set(SPDLOG_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/spdlog)
 set(SPDLOG_INCLUDE_DIR ${SPDLOG_ROOT}/include)
 
 # json
-set(JSON_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/json)
-set(JSON_INCLUDE_DIR ${JSON_ROOT}/include)
-set(TAOCPP_JSON_BUILD_TESTS OFF CACHE BOOL "")
-add_subdirectory(${JSON_ROOT} EXCLUDE_FROM_ALL)
+if(HUNTER_ENABLED)
+  find_package(taocpp-json REQUIRED)
+else()
+  set(JSON_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/json)
+  set(JSON_INCLUDE_DIR ${JSON_ROOT}/include)
+  set(TAOCPP_JSON_BUILD_TESTS OFF CACHE BOOL "")
+  add_subdirectory(${JSON_ROOT} EXCLUDE_FROM_ALL)
+endif()
 
 # CodeCoverage
 
@@ -139,13 +171,23 @@ if(BUILD_DOC)
     # install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html DESTINATION share/doc)
 endif()
 
-find_package(PkgConfig)
-pkg_check_modules(sqlite REQUIRED IMPORTED_TARGET sqlite3)
-pkg_check_modules(botan-2 REQUIRED IMPORTED_TARGET botan-2)
-pkg_check_modules(libusb-1.0 REQUIRED IMPORTED_TARGET libusb-1.0)
-pkg_check_modules(gnutls REQUIRED IMPORTED_TARGET gnutls)
+if(HUNTER_ENABLED)
+  find_package(sqlite3 REQUIRED)
+  find_package(libusb-1.0 REQUIRED)
+  find_package(gnutls REQUIRED)
+  find_package(OpenSSL REQUIRED)   # CURL depends on OpenSSL
+  find_package(intsizeof REQUIRED) # CURL depends on intsizeof
+  find_package(ZLIB REQUIRED)      # CURL depends on ZLIB
+  find_package(botan-2 REQUIRED)
+else()
+  find_package(PkgConfig)
+  pkg_check_modules(sqlite REQUIRED IMPORTED_TARGET sqlite3)
+  pkg_check_modules(botan-2 REQUIRED IMPORTED_TARGET botan-2)
+  pkg_check_modules(libusb-1.0 REQUIRED IMPORTED_TARGET libusb-1.0)
+  pkg_check_modules(gnutls REQUIRED IMPORTED_TARGET gnutls)
+endif()
 
-find_package(Boost COMPONENTS locale date_time REQUIRED)
+find_package(Boost COMPONENTS locale system REQUIRED)
 
 find_package(CURL REQUIRED)
 find_package(Threads)
