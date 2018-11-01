@@ -26,23 +26,14 @@ add_library(neopg-tool STATIC
 )
 add_library(neopg::neopg-tool ALIAS neopg-tool)
 target_include_directories(neopg-tool PUBLIC
-  $<INSTALL_INTERFACE:include>
-  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
-  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
-  $<BUILD_INTERFACE:${SPDLOG_INCLUDE_DIR}>
-  $<BUILD_INTERFACE:${CLI11_INCLUDE_DIR}>
-  $<BUILD_INTERFACE:${RANG_INCLUDE_DIR}>
+  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_BINARY_DIR}
+  ${SPDLOG_INCLUDE_DIR}
+  ${CLI11_INCLUDE_DIR}
+  ${RANG_INCLUDE_DIR}
 )
 target_link_libraries(neopg-tool PUBLIC
   neopg::neopg
-)
-
-install(TARGETS neopg-tool
-  EXPORT neopg
-  ARCHIVE
-    DESTINATION lib
-  PUBLIC_HEADER
-    DESTINATION include
 )
 
 # NeoPG tool (binary)
@@ -252,11 +243,11 @@ target_compile_definitions(neopg-bin PRIVATE
 
 target_link_libraries(neopg-bin
   PUBLIC
-  neopg::neopg-tool
   Boost::locale
   PkgConfig::libusb-1.0
   Threads::Threads
   PRIVATE
+  neopg::neopg-tool
   neopg::gpg-error
   neopg::assuan
   neopg::gcrypt
@@ -269,18 +260,6 @@ install(TARGETS neopg-bin
   EXPORT neopg
   RUNTIME
     DESTINATION bin
-  PUBLIC_HEADER
-    DESTINATION include
-)
-
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/neopg-tool/cli
-  DESTINATION include/neopg-tool
-  FILES_MATCHING PATTERN *.h
-)
-
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/neopg-tool/io
-  DESTINATION include/neopg-tool
-  FILES_MATCHING PATTERN *.h
 )
 
 # Tests
